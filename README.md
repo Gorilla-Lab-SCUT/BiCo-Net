@@ -1,7 +1,7 @@
 # BiCo-Net
 Code for "BiCo-Net: Regress Globally, Match Locally for Robust 6D Pose Estimation" [[Arxiv](https://arxiv.org/abs/2205.03536)]
 
-![image](https://github.com/Gorilla-Lab-SCUT/BiCo-Net/blob/main/doc/network.pdf)
+![image](https://github.com/Gorilla-Lab-SCUT/BiCo-Net/blob/main/doc/network.png)
 
 ## Requirements
 This code has been tested with
