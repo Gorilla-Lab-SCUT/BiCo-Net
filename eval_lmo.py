@@ -21,15 +21,17 @@ model = './experiments/linemod_occlusion/pretrained_models/pose_model_27_0.02377
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_root', type=str, default='', help='dataset root dir')
 parser.add_argument('--model', type=str, default=model, help='resume PoseNet model')
+parser.add_argument('--pred_mask', type=str, default=model, help='pred mask dir')
 opt = parser.parse_args()
 num_obj = 8
 num_points = 1000
 num_fps = 100
 
 class TestDataset(torch.utils.data.Dataset):
-    def __init__(self, num_pt, root):
+    def __init__(self, num_pt, root, pred_mask):
         self.num_pt = num_pt
         self.root = root
+        self.pred_mask = pred_mask
         self.objlist = [1, 5, 6, 8, 9, 10, 11, 12]
         self.seglist = [21, 106, 128, 170, 191, 213, 234, 255]
         meta_file = yaml.load(open('{0}/data/02/gt.yml'.format(root), 'r'), Loader=yaml.FullLoader)
@@ -47,7 +49,7 @@ class TestDataset(torch.utils.data.Dataset):
                     continue
                 self.list_rgb.append('{0}/data/02/rgb/{1}.png'.format(root, '%04d'%index))
                 self.list_depth.append('{0}/data/02/depth/{1}.png'.format(root, '%04d'%index))
-                self.list_label.append('{0}/data/02/mask_hybridpose/{1}/{2}.png'.format(root, obj, '%04d'%index))
+                self.list_label.append('{0}/{1}/{2}.png'.format(self.pred_mask, obj, '%04d'%index))
                 self.list_obj.append(obj)
                 self.meta.append(item_meta)
 
@@ -257,7 +259,7 @@ if __name__ == '__main__':
     estimator.load_state_dict(torch.load(opt.model))
     estimator.eval()    
 
-    testset = TestDataset(num_points, opt.dataset_root)
+    testset = TestDataset(num_points, opt.dataset_root, opt.pred_mask)
     testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=False, num_workers=8, pin_memory=True)
 
     diameter = []

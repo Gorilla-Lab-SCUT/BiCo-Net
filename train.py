@@ -27,6 +27,7 @@ parser.add_argument('--lr_decay', default = [1, 0.3, 0.1, 0.03, 0.01])
 parser.add_argument('--lr_steps', default = [10, 20, 30, 40])
 parser.add_argument('--nepoch', type=int, default = 50)
 parser.add_argument('--resume_posenet', type=str, default = '')
+parser.add_argument('--bg_img', type=str, default = 'datasets/VOCdevkit/VOC2012')
 opt = parser.parse_args()
 
 def get_learning_rate(epoch):
@@ -64,12 +65,12 @@ def main():
 
     if opt.dataset == 'ycbv': dataset = PoseDataset_ycb('train', opt.num_points, True, opt.dataset_root)
     elif opt.dataset == 'linemod': dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root)
-    elif opt.dataset == 'lmo': dataset = PoseDataset_lmo('train', opt.num_points, True, opt.dataset_root)
+    elif opt.dataset == 'lmo': dataset = PoseDataset_lmo('train', opt.num_points, True, opt.dataset_root, opt.bg_img)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=opt.workers, pin_memory=True)
 
     if opt.dataset == 'ycbv': test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root)
     elif opt.dataset == 'linemod': test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root)
-    elif opt.dataset == 'lmo': test_dataset = PoseDataset_lmo('test', opt.num_points, False, opt.dataset_root)
+    elif opt.dataset == 'lmo': test_dataset = PoseDataset_lmo('test', opt.num_points, False, opt.dataset_root, opt.bg_img)
     testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=opt.workers, pin_memory=True)
 
     print('>>>>>>>>----------Dataset loaded!---------<<<<<<<<')
