@@ -10,6 +10,7 @@ import torch.utils.data
 from torch.autograd import Variable
 from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
 from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
+from datasets.lmo.dataset import PoseDataset as PoseDataset_lmo
 from lib.network import PoseNet
 from lib.loss import Loss
 from lib.utils import setup_logger, load_json
@@ -43,17 +44,18 @@ def main():
     if opt.dataset == 'ycbv':
         opt.num_objects = 21 
         opt.num_points = 1000 
-        outdir = './experiments/ycbv/trained_models'
-        rundir = './experiments/ycbv/runs'
-        logdir = './experiments/ycbv/logs'
         opt.repeat_epoch = 1 
     elif opt.dataset == 'linemod':
         opt.num_objects = 13
-        opt.num_points = 500
-        outdir = './experiments/linemod/trained_models'
-        rundir = './experiments/linemod/runs'
-        logdir = './experiments/linemod/logs'
+        opt.num_points = 1000
         opt.repeat_epoch = 20
+    elif opt.dataset == 'lmo':
+        opt.num_objects = 8
+        opt.num_points = 1000
+        opt.repeat_epoch = 5  
+    outdir = './experiments/%s/trained_models'%opt.dataset
+    rundir = './experiments/%s/runs'%opt.dataset
+    logdir = './experiments/%s/logs'%opt.dataset
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -62,10 +64,12 @@ def main():
 
     if opt.dataset == 'ycbv': dataset = PoseDataset_ycb('train', opt.num_points, True, opt.dataset_root)
     elif opt.dataset == 'linemod': dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root)
+    elif opt.dataset == 'lmo': dataset = PoseDataset_lmo('train', opt.num_points, True, opt.dataset_root)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=opt.workers, pin_memory=True)
 
     if opt.dataset == 'ycbv': test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root)
     elif opt.dataset == 'linemod': test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root)
+    elif opt.dataset == 'lmo': test_dataset = PoseDataset_lmo('test', opt.num_points, False, opt.dataset_root)
     testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=opt.workers, pin_memory=True)
 
     print('>>>>>>>>----------Dataset loaded!---------<<<<<<<<')
@@ -95,7 +99,8 @@ def main():
         optimizer.zero_grad()
 
         for rep in range(opt.repeat_epoch):
-            for i, data in enumerate(dataloader, 0):
+           for i, data in enumerate(dataloader, 0):
+                if len(data) == 1: continue
                 points, normal, choose, img, cad, model_points, target_r, target_t, cls = data
                 points, normal, choose, img, cad, model_points, target_r, target_t = \
                                                                  Variable(points).cuda(), \
@@ -140,6 +145,10 @@ def main():
         pts_dis = []
         result_obj_id = []
         for j, data in enumerate(testdataloader, 0):
+            if len(data) == 1: 
+                pts_dis.append(np.inf)       
+                result_obj_id.append(data[0])
+                continue
             points, normal, choose, img, cad, model_points, target_r, target_t, cls = data
             points, normal, choose, img, cad, model_points, target_r, target_t = \
                                                                 Variable(points).cuda(), \
