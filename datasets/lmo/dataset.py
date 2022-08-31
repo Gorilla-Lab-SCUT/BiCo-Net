@@ -14,10 +14,10 @@ from transforms3d.euler import euler2mat
 from torchvision.datasets import ImageFolder
 
 class PoseDataset(data.Dataset):
-    def __init__(self, mode, num_pt, add_noise, root):
+    def __init__(self, mode, num_pt, add_noise, root, bg_img):
         self.objlist = [1, 5, 6, 8, 9, 10, 11, 12]
         self.seglist = [21, 106, 128, 170, 191, 213, 234, 255]
-        self.bg_aug = ImageFolder('datasets/linemod/VOCdevkit/VOC2012')
+        self.bg_aug = ImageFolder(bg_img)
         self.mode = mode                                            
         self.num_pt = num_pt
         self.add_noise = add_noise
