@@ -34,9 +34,11 @@ class PoseDataset(data.Dataset):
             obj_loader = tqdm(self.objlist)
             for obj in obj_loader:
                 obj_loader.set_postfix_str(f'loading path and meta of object {obj}')
-                input_file = open('{0}/data/{1}/train.txt'.format(root, '%02d'%obj))
-                while 1:
-                    input_line = input_file.readline()
+                input_file_train = open('{0}/data/{1}/train.txt'.format(root, '%02d'%obj)).readlines()
+                input_file_test = open('{0}/data/{1}/test.txt'.format(root, '%02d'%obj)).readlines()
+                input_file = input_file_train + input_file_test
+                input_file.sort()
+                for input_line in input_file:
                     if not input_line: break
                     self.list_rgb.append('{0}/data/{1}/rgb/{2}.png'.format(root, '%02d'%obj, input_line[:-1]))
                     self.list_depth.append('{0}/data/{1}/depth/{2}.png'.format(root, '%02d'%obj, input_line[:-1]))
