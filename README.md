@@ -5,6 +5,7 @@ Code for "BiCo-Net: Regress Globally, Match Locally for Robust 6D Pose Estimatio
 
 ## Requirements
 This code has been tested with
+- Open3D 0.9.0.0
 - python 3.7.12
 - pytorch 1.6.0
 - CUDA 10.1
