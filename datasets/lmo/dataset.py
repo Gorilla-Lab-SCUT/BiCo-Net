@@ -127,7 +127,7 @@ class PoseDataset(data.Dataset):
                 img_masked = (~mask_front) * img_masked + mask_front * front_rgb
                 mask = (~mask_front[:, :, 0]) * mask
 
-        img_masked = np.transpose(img, (2, 0, 1))
+        img_masked = np.transpose(img_masked, (2, 0, 1))
         if self.add_noise:
             box_noi = np.random.randint(-10, 10, 4)
         else: 
