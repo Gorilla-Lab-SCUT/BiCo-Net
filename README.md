@@ -5,10 +5,11 @@ Code for "BiCo-Net: Regress Globally, Match Locally for Robust 6D Pose Estimatio
 
 ## Requirements
 This code has been tested with
-- Open3D 0.9.0.0
-- python 3.7.12
-- pytorch 1.6.0
-- CUDA 10.1
+- Open3D==0.9.0.0
+- Python==3.7.12
+- OpenCV==4.1
+- Pytorch==1.6.0
+- CUDA==10.1
 
 ## Downloads
 - YCB-Video dataset [[link](https://rse-lab.cs.washington.edu/projects/posecnn)]

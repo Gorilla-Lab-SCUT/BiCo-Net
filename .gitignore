@@ -1,0 +1,8 @@
+experiments
+VOC2012
+Linemod_preprocessed
+**.egg**
+**.pyc
+**.so
+**.o
+local_data

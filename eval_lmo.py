@@ -76,7 +76,7 @@ class TestDataset(torch.utils.data.Dataset):
 
     def mask_to_bbox(self, mask, padding):
         mask = mask.astype(np.uint8)
-        _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         x, y, w, h = 0, 0, 0, 0
         for contour in contours:
             tmp_x, tmp_y, tmp_w, tmp_h = cv2.boundingRect(contour)

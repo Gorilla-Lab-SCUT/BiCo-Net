@@ -69,7 +69,7 @@ class TestDataset(torch.utils.data.Dataset):
             if not class_input:
                 break
             print('loading cad: obj_%06d.ply'%cad_id)
-            pnc = o3d.io.read_point_cloud('%s/models_rgb/obj_%06d.ply'%(dataset_root, cad_id))
+            pnc = o3d.io.read_point_cloud(f'./local_data/models_rgb/obj_{cad_id:06d}.ply')
             pp = np.array(pnc.points)/1000.0# (N, 3)
             pp = pp - pp.mean(0)
             nn = np.array(pnc.normals)# (N, 3)

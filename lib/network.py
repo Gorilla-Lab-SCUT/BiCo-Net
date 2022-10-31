@@ -138,6 +138,13 @@ class PoseNet(nn.Module):
         self.avgpool = nn.AvgPool1d(num_points)
 
     def forward(self, img, x, n, choose, cls, cad):
+        '''args:
+        B: batch size
+        img: image,
+        x: scene point cloud coord, (B, N, 3)
+        n: scen point cloud norm, (B, N, 3)
+        cad: CAD model point cloud, (B, N, [xyz, nxnynz, rgb])
+        '''
         out_img = self.cnn(img)# (B, 32, h, w)
         bs, di, _, _ = out_img.size()
         emb = out_img.view(bs, di, -1)# (B, 32, h*w)
