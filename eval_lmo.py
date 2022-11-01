@@ -12,10 +12,10 @@ import yaml
 from PIL import Image
 from torch.autograd import Variable
 
-from lib.knn.__init__ import KNearestNeighbor
 from lib.network import PoseNet
 from lib.pointpair_matching import ppf_filtering
 from lib.rotation import quaternion_to_matrix
+from lib.ops import ADDS_Dis, L2_Dis, fps
 
 model = './local_data/lmo_pose_model_27_0.02377143515188488.pth'
 dataset_root = './local_data/Linemod_preprocessed'
@@ -29,6 +29,7 @@ opt = parser.parse_args()
 num_obj = 8
 num_points = 1000
 num_fps = 100
+
 
 class TestDataset(torch.utils.data.Dataset):
     def __init__(self, num_pt, root, pred_mask):
@@ -77,6 +78,7 @@ class TestDataset(torch.utils.data.Dataset):
         self.symmetry_obj_idx = [5, 6]    
         self.num_pt_mesh = 500
 
+
     def mask_to_bbox(self, mask, padding):
         mask = mask.astype(np.uint8)
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -108,7 +110,7 @@ class TestDataset(torch.utils.data.Dataset):
 
         img_masked = img
         img_masked = np.transpose(img_masked, (2, 0, 1))# H*W*3 -> 3*H*W
-        rmin, rmax, cmin, cmax = get_bbox(self.mask_to_bbox(mask_label, padding=0))
+        rmin, rmax, cmin, cmax = self.get_bbox(self.mask_to_bbox(mask_label, padding=0))
 
         img_masked = img_masked[:, rmin:rmax, cmin:cmax]# 3*H*W -> 3*h*w
     
@@ -171,88 +173,57 @@ class TestDataset(torch.utils.data.Dataset):
                torch.LongTensor(midx_i.astype(np.int32)),\
                cls
 
+
     def __len__(self):
         return self.length
 
-border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
-img_width, img_length = 480, 640
-def get_bbox(bbox):
-    bbx = [bbox[1], bbox[1] + bbox[3], bbox[0], bbox[0] + bbox[2]]
-    if bbx[0] < 0:
-        bbx[0] = 0
-    if bbx[1] >= 480:
-        bbx[1] = 479
-    if bbx[2] < 0:
-        bbx[2] = 0
-    if bbx[3] >= 640:
-        bbx[3] = 639                
-    rmin, rmax, cmin, cmax = bbx[0], bbx[1], bbx[2], bbx[3]
-    r_b = rmax - rmin
-    for tt in range(len(border_list)):
-        if r_b > border_list[tt] and r_b < border_list[tt + 1]:
-            r_b = border_list[tt + 1]
-            break
-    c_b = cmax - cmin
-    for tt in range(len(border_list)):
-        if c_b > border_list[tt] and c_b < border_list[tt + 1]:
-            c_b = border_list[tt + 1]
-            break
-    center = [int((rmin + rmax) / 2), int((cmin + cmax) / 2)]
-    rmin = center[0] - int(r_b / 2)
-    rmax = center[0] + int(r_b / 2)
-    cmin = center[1] - int(c_b / 2)
-    cmax = center[1] + int(c_b / 2)
-    if rmin < 0:
-        delt = -rmin
-        rmin = 0
-        rmax += delt
-    if cmin < 0:
-        delt = -cmin
-        cmin = 0
-        cmax += delt
-    if rmax > 480:
-        delt = rmax - 480
-        rmax = 480
-        rmin -= delt
-    if cmax > 640:
-        delt = cmax - 640
-        cmax = 640
-        cmin -= delt
-    return rmin, rmax, cmin, cmax
 
-def fps(point, npoint):
-    N, D = point.shape
-    if N < npoint:
-        idx = np.random.choice(np.arange(N), npoint-N)
-        return np.concatenate([point, point[idx]], axis=0), \
-            np.concatenate([np.arange(N), idx], axis=0)
-    xyz = point[:, :3]
-    centroids = np.zeros((npoint,)).astype(np.int32)
-    distance = np.ones((N,)) * 1e10
-    farthest = np.random.randint(0, N)
-    for i in range(npoint):
-        centroids[i] = farthest
-        centroid = xyz[farthest, :]
-        dist = np.sum((xyz - centroid) ** 2, -1)
-        mask = dist < distance
-        distance[mask] = dist[mask]
-        farthest = np.argmax(distance, -1)
-    point = point[centroids]
-    return point, centroids
+    def get_bbox(self, bbox):
+        border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
+        img_width, img_length = 480, 640
+        bbx = [bbox[1], bbox[1] + bbox[3], bbox[0], bbox[0] + bbox[2]]
+        if bbx[0] < 0:
+            bbx[0] = 0
+        if bbx[1] >= 480:
+            bbx[1] = 479
+        if bbx[2] < 0:
+            bbx[2] = 0
+        if bbx[3] >= 640:
+            bbx[3] = 639                
+        rmin, rmax, cmin, cmax = bbx[0], bbx[1], bbx[2], bbx[3]
+        r_b = rmax - rmin
+        for tt in range(len(border_list)):
+            if r_b > border_list[tt] and r_b < border_list[tt + 1]:
+                r_b = border_list[tt + 1]
+                break
+        c_b = cmax - cmin
+        for tt in range(len(border_list)):
+            if c_b > border_list[tt] and c_b < border_list[tt + 1]:
+                c_b = border_list[tt + 1]
+                break
+        center = [int((rmin + rmax) / 2), int((cmin + cmax) / 2)]
+        rmin = center[0] - int(r_b / 2)
+        rmax = center[0] + int(r_b / 2)
+        cmin = center[1] - int(c_b / 2)
+        cmax = center[1] + int(c_b / 2)
+        if rmin < 0:
+            delt = -rmin
+            rmin = 0
+            rmax += delt
+        if cmin < 0:
+            delt = -cmin
+            cmin = 0
+            cmax += delt
+        if rmax > img_width:
+            delt = rmax - img_width
+            rmax = img_width
+            rmin -= delt
+        if cmax > img_length:
+            delt = cmax - img_length
+            cmax = img_length
+            cmin -= delt
+        return rmin, rmax, cmin, cmax
 
-def L2_Dis(pred, target):
-    return torch.norm(pred - target, dim=2).mean(1)
-    
-def ADDS_Dis(pred, target):
-    knn = KNearestNeighbor(1)
-    pred = pred.permute(0, 2, 1).contiguous()
-    target = target.permute(0, 2, 1).contiguous()
-    inds = knn.forward(target, pred)
-    target = torch.gather(target, 2, inds.repeat(1, 3, 1) - 1)
-    pred = pred.permute(0, 2, 1).contiguous()
-    target = target.permute(0, 2, 1).contiguous()
-    del knn
-    return torch.norm(pred - target, dim=2).mean(1)
 
 if __name__ == '__main__':
 

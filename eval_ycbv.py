@@ -11,10 +11,10 @@ import torchvision.transforms as transforms
 from PIL import Image
 from torch.autograd import Variable
 
-from lib.knn.__init__ import KNearestNeighbor
 from lib.network import PoseNet
 from lib.pointpair_matching import ppf_filtering
 from lib.rotation import quaternion_to_matrix
+from lib.ops import ADDS_Dis, L2_Dis, fps
 
 model = './local_data/ycbv_pose_model_36_0.008871091098015229.pth'
 dataset_root = './local_data/YCB_Video_Dataset'
@@ -28,6 +28,7 @@ opt = parser.parse_args()
 num_obj = 21
 num_points = 1000
 num_fps = 100
+
 
 class TestDataset(torch.utils.data.Dataset):
     def __init__(self, num_points, dataset_root):
@@ -96,6 +97,7 @@ class TestDataset(torch.utils.data.Dataset):
         self.cam_scale = 10000.0
         self.num_pt_mesh = 1000
 
+
     def __getitem__(self, index):
         frameid = self.testlist[index]['frameid']
         img = Image.open('{0}/{1}-color.png'.format(self.dataset_root, self.testlist[index]['frame_name']))
@@ -111,7 +113,7 @@ class TestDataset(torch.utils.data.Dataset):
         print('processing frame {} instance {}'.format(frameid, itemid))
         try:
             if np.where(pred_rois[:, 1:2].flatten() == itemid)[0].shape[0] != 0:
-                rmin, rmax, cmin, cmax = get_bbox(pred_rois, np.where(pred_rois[:, 1:2].flatten() == itemid)[0][0])
+                rmin, rmax, cmin, cmax = self.get_bbox(pred_rois, np.where(pred_rois[:, 1:2].flatten() == itemid)[0][0])
             else:
                 raise ZeroDivisionError
 
@@ -197,70 +199,52 @@ class TestDataset(torch.utils.data.Dataset):
                    torch.LongTensor(np.arange(num_fps).astype(np.int32)),\
                    False
 
+
     def __len__(self):
         return self.length
 
-border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
-img_width, img_length = 480, 640
-def get_bbox(pred_rois, idx):
-    rmin = np.max([int(pred_rois[idx][3])+1, 0])
-    rmax = np.min([int(pred_rois[idx][5])-1, img_width])
-    cmin = np.max([int(pred_rois[idx][2])+1, 0])
-    cmax = np.min([int(pred_rois[idx][4])-1, img_length])
-    
-    r_b = rmax - rmin
-    for tt in range(len(border_list)):
-        if r_b > border_list[tt] and r_b < border_list[tt + 1]:
-            r_b = border_list[tt + 1]
-            break
-    c_b = cmax - cmin
-    for tt in range(len(border_list)):
-        if c_b > border_list[tt] and c_b < border_list[tt + 1]:
-            c_b = border_list[tt + 1]
-            break
-    center = [int((rmin + rmax) / 2), int((cmin + cmax) / 2)]
-    rmin = center[0] - int(r_b / 2)
-    rmax = center[0] + int(r_b / 2)
-    cmin = center[1] - int(c_b / 2)
-    cmax = center[1] + int(c_b / 2)
-    if rmin < 0:
-        delt = -rmin
-        rmin = 0
-        rmax += delt
-    if cmin < 0:
-        delt = -cmin
-        cmin = 0
-        cmax += delt
-    if rmax > img_width:
-        delt = rmax - img_width
-        rmax = img_width
-        rmin -= delt
-    if cmax > img_length:
-        delt = cmax - img_length
-        cmax = img_length
-        cmin -= delt
-    return rmin, rmax, cmin, cmax
 
-def fps(point, npoint):
-    '''farthest point sampling'''
-    N, D = point.shape
-    if N < npoint:  # random choose existing point to fill npoints
-        idx = np.random.choice(np.arange(N), npoint-N)
-        return np.concatenate([point, point[idx]], axis=0), \
-            np.concatenate([np.arange(N), idx], axis=0)
-    xyz = point[:, :3]
-    sampled_idx = np.zeros((npoint,)).astype(np.int32)  # farthest points idx
-    distance = np.ones((N,)) * 1e10
-    farthest = np.random.randint(0, N)  # inital random select a point idx
-    for i in range(npoint):
-        sampled_idx[i] = farthest  # an farthest point indx
-        centroid = xyz[farthest, :]  # the farthest point coord
-        dist = np.sum((xyz - centroid) ** 2, -1)  # cal dis of the farthest point to total point set
-        mask = dist < distance       # cal the selected point set distance to total point set
-        distance[mask] = dist[mask]  # update distance array, take nearest dis in selected point set as dis
-        farthest = np.argmax(distance, -1)
-    point = point[sampled_idx]
-    return point, sampled_idx
+    def get_bbox(self, pred_rois, idx):
+        border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
+        img_width, img_length = 480, 640
+        rmin = np.max([int(pred_rois[idx][3])+1, 0])
+        rmax = np.min([int(pred_rois[idx][5])-1, img_width])
+        cmin = np.max([int(pred_rois[idx][2])+1, 0])
+        cmax = np.min([int(pred_rois[idx][4])-1, img_length])
+        
+        r_b = rmax - rmin
+        for tt in range(len(border_list)):
+            if r_b > border_list[tt] and r_b < border_list[tt + 1]:
+                r_b = border_list[tt + 1]
+                break
+        c_b = cmax - cmin
+        for tt in range(len(border_list)):
+            if c_b > border_list[tt] and c_b < border_list[tt + 1]:
+                c_b = border_list[tt + 1]
+                break
+        center = [int((rmin + rmax) / 2), int((cmin + cmax) / 2)]
+        rmin = center[0] - int(r_b / 2)
+        rmax = center[0] + int(r_b / 2)
+        cmin = center[1] - int(c_b / 2)
+        cmax = center[1] + int(c_b / 2)
+        if rmin < 0:
+            delt = -rmin
+            rmin = 0
+            rmax += delt
+        if cmin < 0:
+            delt = -cmin
+            cmin = 0
+            cmax += delt
+        if rmax > img_width:
+            delt = rmax - img_width
+            rmax = img_width
+            rmin -= delt
+        if cmax > img_length:
+            delt = cmax - img_length
+            cmax = img_length
+            cmin -= delt
+        return rmin, rmax, cmin, cmax
+
 
 def VOCap(rec, prec):
     idx = np.where(rec != np.inf)
@@ -276,6 +260,7 @@ def VOCap(rec, prec):
     ap = np.sum((mrec[i] - mrec[i-1]) * mpre[i]) * 10
     return ap
 
+
 def cal_auc(dis_list, max_dis=0.1):
     D = np.array(dis_list)
     D[np.where(D > max_dis)] = np.inf
@@ -284,6 +269,7 @@ def cal_auc(dis_list, max_dis=0.1):
     acc = np.cumsum(np.ones((1,n)), dtype=np.float32) / n
     aps = VOCap(D, acc)
     return aps * 100
+
 
 def cal_metric(ADDS_list, ADD_S_list, idx_list):
     ADDS_list = np.array(ADDS_list)
@@ -300,22 +286,10 @@ def cal_metric(ADDS_list, ADD_S_list, idx_list):
         print('NO.{0} | ADDS_AUC:{1} | ADDS_2cm:{2}'.format('%02d'%(idx+1), '%3.2f'%ADDS_auc_item, '%3.2f'%ADDS_2cm_item))
     ADDS_auc = cal_auc(ADDS_list)
     ADDS_2cm = round((len(ADDS_list[ADDS_list <= 0.02]) / len(ADDS_list))*100, 2)
-    print('ALL   | ADDS_AUC:{0} |  ADDS_2cm:{1}'.format('%3.2f'%ADDS_auc, '%3.2f'%ADDS_2cm))
+    print('ALL   | ADDS_AUC:{0} | ADDS_2cm:{1}'.format('%3.2f'%ADDS_auc, '%3.2f'%ADDS_2cm))
     return  ADDS_auc, ADDS_2cm
 
-def L2_Dis(pred, target):
-    return torch.norm(pred - target, dim=2).mean(1)
-    
-def ADDS_Dis(pred, target):
-    knn = KNearestNeighbor(1)
-    pred = pred.permute(0, 2, 1).contiguous()
-    target = target.permute(0, 2, 1).contiguous()
-    inds = knn.forward(target, pred)
-    target = torch.gather(target, 2, inds.repeat(1, 3, 1) - 1)
-    pred = pred.permute(0, 2, 1).contiguous()
-    target = target.permute(0, 2, 1).contiguous()
-    del knn
-    return torch.norm(pred - target, dim=2).mean(1)
+
 
 if __name__ == '__main__':
 
