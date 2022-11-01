@@ -1,5 +1,6 @@
-import logging
 import json
+import logging
+
 
 def setup_logger(logger_name, log_file, level=logging.INFO):
     l = logging.getLogger(logger_name)
@@ -14,6 +15,7 @@ def setup_logger(logger_name, log_file, level=logging.INFO):
     streamHandler.setFormatter(formatter)
     l.addHandler(streamHandler)
     return l
+
 
 def load_json(path, keys_to_int=False):
   """Loads content of a JSON file.

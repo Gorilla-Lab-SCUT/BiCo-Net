@@ -1,17 +1,16 @@
-import torch.utils.data as data
-from PIL import Image
-import os
-import os.path
-import torch
-import numpy as np
-import torchvision.transforms as transforms
 import random
+
+import numpy as np
 import numpy.ma as ma
-import yaml
-from tqdm import tqdm
 import open3d as o3d
-from transforms3d.euler import euler2mat
+import torch
+import torch.utils.data as data
+import torchvision.transforms as transforms
+import yaml
+from PIL import Image
 from torchvision.datasets import ImageFolder
+from tqdm import tqdm
+
 
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root, bg_img):
@@ -195,9 +194,10 @@ class PoseDataset(data.Dataset):
     def get_num_points_mesh(self):
         return self.num_pt_mesh
 
-border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
-img_width, img_length = 480, 640
+
 def get_bbox(bbox):
+    border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
+    img_width, img_length = 480, 640
     bbx = [bbox[1], bbox[1] + bbox[3], bbox[0], bbox[0] + bbox[2]]
     if bbx[0] < 0:
         bbx[0] = 0

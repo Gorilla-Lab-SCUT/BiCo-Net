@@ -14,15 +14,18 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
+
 def load_weights_sequential(target, source_state):
     new_dict = OrderedDict()
     for (k1, v1), (k2, v2) in zip(target.state_dict().items(), source_state.items()):
         new_dict[k1] = v2
     target.load_state_dict(new_dict)
 
+
 def conv3x3(in_planes, out_planes, stride=1, dilation=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, dilation=dilation, bias=False)
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -34,6 +37,7 @@ class BasicBlock(nn.Module):
         self.conv2 = conv3x3(planes, planes, stride=1, dilation=dilation)
         self.downsample = downsample
         self.stride = stride
+
 
     def forward(self, x):
         residual = x
@@ -63,6 +67,7 @@ class Bottleneck(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
+
 
     def forward(self, x):
         residual = x
@@ -105,6 +110,7 @@ class ResNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+
     def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -119,6 +125,7 @@ class ResNet(nn.Module):
             layers.append(block(self.inplanes, planes, dilation=dilation))
 
         return nn.Sequential(*layers)
+
 
     def forward(self, x):
         x = self.conv1(x)
@@ -144,6 +151,7 @@ def resnet18(pretrained=False):
         )
     return model
 
+
 def resnet34(pretrained=False):
     model = ResNet(BasicBlock, [3, 4, 6, 3])
     if pretrained:
@@ -154,6 +162,7 @@ def resnet34(pretrained=False):
             )
         )
     return model
+
 
 def resnet50(pretrained=False):
     model = ResNet(Bottleneck, [3, 4, 6, 3])
@@ -166,6 +175,7 @@ def resnet50(pretrained=False):
         )
     return model
 
+
 def resnet101(pretrained=False):
     model = ResNet(Bottleneck, [3, 4, 23, 3])
     if pretrained:
@@ -176,6 +186,7 @@ def resnet101(pretrained=False):
             )
         )
     return model
+
 
 def resnet152(pretrained=False):
     model = ResNet(Bottleneck, [3, 8, 36, 3])

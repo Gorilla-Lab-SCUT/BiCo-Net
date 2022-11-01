@@ -1,12 +1,14 @@
-import torch.utils.data as data
-from PIL import Image
-import torch
-import numpy as np
-import torchvision.transforms as transforms
 import random
+
+import numpy as np
 import numpy.ma as ma
-import scipy.io as scio
 import open3d as o3d
+import scipy.io as scio
+import torch
+import torch.utils.data as data
+import torchvision.transforms as transforms
+from PIL import Image
+
 
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root):
@@ -225,12 +227,9 @@ class PoseDataset(data.Dataset):
         return self.num_pt_mesh
 
 
-
-border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
-img_width = 480
-img_length = 640
-
 def get_bbox(label):
+    border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
+    img_width, img_length = 480, 640
     rows = np.any(label, axis=1)
     cols = np.any(label, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]

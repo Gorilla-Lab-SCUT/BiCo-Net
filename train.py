@@ -2,20 +2,20 @@ import argparse
 import os
 import random
 import time
+
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
+from tensorboardX import SummaryWriter
 from torch.autograd import Variable
-from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
+
 from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
 from datasets.lmo.dataset import PoseDataset as PoseDataset_lmo
-from lib.network import PoseNet
+from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
 from lib.loss import Loss
-from lib.utils import setup_logger, load_json
-from os.path import join
-from tensorboardX import SummaryWriter
+from lib.network import PoseNet
+from lib.utils import setup_logger
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, default = '')

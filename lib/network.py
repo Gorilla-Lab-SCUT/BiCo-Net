@@ -1,10 +1,9 @@
-import argparse
-import os
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from lib.pspnet import PSPNet
+
 
 psp_models = {
     'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18'),
@@ -14,6 +13,7 @@ psp_models = {
     'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152')
 }
 
+
 class ModifiedResnet(nn.Module):
     def __init__(self, usegpu=True):
         super(ModifiedResnet, self).__init__()
@@ -22,6 +22,7 @@ class ModifiedResnet(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return x
+
 
 class PoseNetFeat(nn.Module):
     def __init__(self, num_points):
@@ -35,6 +36,7 @@ class PoseNetFeat(nn.Module):
         self.ap1 = nn.AvgPool1d(num_points)
         self.conv5 = nn.Conv1d(1408, 512, 1)
         self.num_points = num_points
+
 
     def forward(self, x, emb):     
         x = F.relu(self.conv1(x))
@@ -52,6 +54,7 @@ class PoseNetFeat(nn.Module):
         feat1 = F.relu(self.conv5(feat1)) # (B, 512, N)
         return feat1 
 
+
 class ModelFeat(nn.Module):
     def __init__(self, num_points):
         super(ModelFeat, self).__init__()
@@ -64,6 +67,7 @@ class ModelFeat(nn.Module):
         self.ap1 = nn.AvgPool1d(num_points)
         self.conv5 = nn.Conv1d(1408, 512, 1)
         self.num_points = num_points
+
 
     def forward(self, cad):
         x = cad[:, 0:6, :]# (B, 6, N)
@@ -83,6 +87,7 @@ class ModelFeat(nn.Module):
         feat1 = torch.cat([pointfeat_1, pointfeat_2, ap_x], 1) # 128 + 256 + 1024
         feat1 = F.relu(self.conv5(feat1)) # (B, 512, N)
         return feat1
+
 
 class PoseNet(nn.Module):
     def __init__(self, num_points, num_obj):
@@ -136,6 +141,7 @@ class PoseNet(nn.Module):
 
         self.maxpool = nn.MaxPool1d(num_points)
         self.avgpool = nn.AvgPool1d(num_points)
+
 
     def forward(self, img, x, n, choose, cls, cad):
         '''args:
@@ -217,4 +223,3 @@ class PoseNet(nn.Module):
         out_ax = out_ax[:, cls[0], ...].transpose(2, 1).contiguous()# (B, N, 3)
         out_bx = out_bx[:, cls[0], ...].transpose(2, 1).contiguous()# (B, N, 3)
         return out_rx, out_tx, out_mx, out_nx, out_ax, out_bx
-    

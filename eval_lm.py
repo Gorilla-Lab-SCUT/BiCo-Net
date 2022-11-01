@@ -1,24 +1,27 @@
 import argparse
+import time
+
 import numpy as np
-from PIL import Image
 import numpy.ma as ma
+import open3d as o3d
 import torch
 import torch.utils.data
 import torchvision.transforms as transforms
-from torch.autograd import Variable
-import time
-from lib.network import PoseNet
 import yaml
-from lib.knn.__init__ import KNearestNeighbor
-from lib.pointpair_matching import compute_pose
-import open3d as o3d
+from PIL import Image
+from torch.autograd import Variable
 from tqdm import tqdm
 
+from lib.knn.__init__ import KNearestNeighbor
+from lib.network import PoseNet
+from lib.pointpair_matching import ppf_filtering
+from lib.rotation import quaternion_to_matrix
 
-model = './experiments/linemod/pretrained_models/pose_model_44_0.005126086624524529.pth'
+model = './local_data/lm_pose_model_44_0.005126086624524529.pth'
+dataset_root = './local_data/Linemod_preprocessed'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset_root', type=str, default='', help='dataset root dir')
+parser.add_argument('--dataset_root', type=str, default=dataset_root, help='dataset root dir')
 parser.add_argument('--model', type=str, default=model, help='resume PoseNet model')
 opt = parser.parse_args()
 num_obj = 13 
@@ -276,75 +279,16 @@ if __name__ == '__main__':
                                                                 Variable(sidx_r).cuda(),\
                                                                 Variable(sidx_i).cuda(),\
                                                                 Variable(midx_r).cuda(),\
-                                                                Variable(midx_i).cuda() 
-            out_rx, out_tx, out_mx, out_nx, out_ax, out_bx = estimator(img, points, normal, choose, cls, cad)
+                                                                Variable(midx_i).cuda()
+            out_rx, out_tx, out_mx, out_nx, out_ax, out_bx = estimator(img, points, normal, choose, cls, cad)  # time: 0.01s
 
             bs, num_p, _ = out_rx.size()
-            out_Rx1 = torch.cat(((1.0 - 2.0 * (out_rx[:, :, 2] ** 2 + out_rx[:, :, 3] ** 2)).view(bs, num_p, 1), \
-                    (2.0 * out_rx[:, :, 1] * out_rx[:, :, 2] - 2.0 * out_rx[:, :, 0] * out_rx[:, :, 3]).view(bs, num_p, 1), \
-                    (2.0 * out_rx[:, :, 0] * out_rx[:, :, 2] + 2.0 * out_rx[:, :, 1] * out_rx[:, :, 3]).view(bs, num_p, 1), \
-                    (2.0 * out_rx[:, :, 1] * out_rx[:, :, 2] + 2.0 * out_rx[:, :, 3] * out_rx[:, :, 0]).view(bs, num_p, 1), \
-                    (1.0 - 2.0 * (out_rx[:, :, 1] ** 2 + out_rx[:, :, 3] ** 2)).view(bs, num_p, 1), \
-                    (-2.0 * out_rx[:, :, 0] * out_rx[:, :, 1] + 2.0 * out_rx[:, :, 2] * out_rx[:, :, 3]).view(bs, num_p, 1), \
-                    (-2.0 * out_rx[:, :, 0] * out_rx[:, :, 2] + 2.0 * out_rx[:, :, 1] * out_rx[:, :, 3]).view(bs, num_p, 1), \
-                    (2.0 * out_rx[:, :, 0] * out_rx[:, :, 1] + 2.0 * out_rx[:, :, 2] * out_rx[:, :, 3]).view(bs, num_p, 1), \
-                    (1.0 - 2.0 * (out_rx[:, :, 1] ** 2 + out_rx[:, :, 2] ** 2)).view(bs, num_p, 1)), dim=2).view(bs*num_p, 3, 3).contiguous()
+            out_Rx1 = quaternion_to_matrix(out_rx).squeeze().contiguous()
             out_tx1 = (points + out_tx).view(bs*num_p, 1, 3).contiguous()
-
             '----------------------------------------------------------------------------------------------'
-            
-            scene_coord = points[0]# (1000, 3)
-            scene_normal = normal[0]# (1000, 3)
-            scene_point = torch.cat([scene_coord, scene_normal], dim=1)# (1000, 6)
-            model_coord_pd = out_mx[0]# (1000, 3)
-            model_normal_pd = out_nx[0]# (1000, 3)
-            model_point_pd = torch.cat([model_coord_pd, model_normal_pd], dim=1)# (1000, 6)
-
-            sidx_r = sidx_r[0][:, None].repeat(1, num_fps).flatten()
-            sidx_i = sidx_i[0][None, :].repeat(num_fps, 1).flatten()
-            valid_idx = (sidx_r != sidx_i)
-            sr = scene_point[sidx_r]
-            si = scene_point[sidx_i]
-            mr_pd = model_point_pd[sidx_r]
-            mi_pd = model_point_pd[sidx_i]
-            Tpose_pd = compute_pose(sr, si, mr_pd, mi_pd)
-            pd_R = Tpose_pd[:, 0:3, 0:3][valid_idx].contiguous()# (9900, 3, 3)
-            pd_t = Tpose_pd[:, 0:3, 3][valid_idx, None, :].contiguous()# (9900, 1, 3)
-
-            N = pd_R.shape[0]
-            matching = torch.bmm(points.repeat(N, 1, 1) - pd_t, pd_R)# (9900, 1000, 3)
-            dis_mx = L2_Dis(matching, out_mx)# (9900, )
-            dis_mnx = dis_mx
-            idx_mnx = torch.sort(dis_mnx)[1]
-            out_Rx2 = pd_R[idx_mnx][0:int(0.1*N)]
-            out_tx2 = pd_t[idx_mnx][0:int(0.1*N)]
+            out_Rx2, out_tx2 = ppf_filtering(points[0], normal[0], out_mx[0], out_nx[0], num_fps, sidx_r[0], sidx_i[0])  # 0.0335s
             '----------------------------------------------------------------------------------------------'
-
-            scene_coord = out_ax[0]# (1000, 3)
-            scene_normal = out_bx[0]# (1000, 3)
-            scene_point = torch.cat([scene_coord, scene_normal], dim=1)# (1000, 6)
-            model_coord_pd = cad[0][:, 0:3]# (1000, 3)
-            model_normal_pd = cad[0][:, 3:6]# (1000, 3)
-            model_point_pd = torch.cat([model_coord_pd, model_normal_pd], dim=1)# (1000, 6)
-
-            midx_r = midx_r[0][:, None].repeat(1, num_fps).flatten()
-            midx_i = midx_i[0][None, :].repeat(num_fps, 1).flatten()
-            valid_idx = (midx_r != midx_i)
-            sr = scene_point[midx_r]
-            si = scene_point[midx_i]
-            mr_pd = model_point_pd[midx_r]
-            mi_pd = model_point_pd[midx_i]
-            Tpose_pd = compute_pose(sr, si, mr_pd, mi_pd)
-            pd_R = Tpose_pd[:, 0:3, 0:3][valid_idx].contiguous()# (9900, 3, 3)
-            pd_t = Tpose_pd[:, 0:3, 3][valid_idx, None, :].contiguous()# (9900, 1, 3)
-
-            N = pd_R.shape[0]
-            matching = torch.bmm(out_ax.repeat(N, 1, 1) - pd_t, pd_R)# (9900, 1000, 3)
-            dis_mx = L2_Dis(matching, cad[:, :, 0:3])# (9900, )
-            dis_mnx = dis_mx
-            idx_mnx = torch.sort(dis_mnx)[1]
-            out_Rx3 = pd_R[idx_mnx][0:int(0.1*N)]
-            out_tx3 = pd_t[idx_mnx][0:int(0.1*N)]
+            out_Rx3, out_tx3 = ppf_filtering(out_ax[0], out_bx[0], cad[0][:, 0:3], cad[0][:, 3:6], num_fps, midx_r[0], midx_i[0])
             '----------------------------------------------------------------------------------------------'
 
             out_R = torch.mean(torch.cat([out_Rx1, out_Rx2, out_Rx3], dim=0), dim=0, keepdim=True)# (1, 3, 3)

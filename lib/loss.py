@@ -1,6 +1,8 @@
 import torch
 from torch.nn.modules.loss import _Loss
+
 from lib.knn.__init__ import KNearestNeighbor
+
 
 class Loss(_Loss):
     def __init__(self, sym_list):
@@ -8,8 +10,10 @@ class Loss(_Loss):
         self.sym_list = sym_list
         self.knn = KNearestNeighbor(1)
 
+
     def L2_Dis(self, pred, target):
         return torch.norm(pred - target, dim=2).mean(1)
+
 
     def ADDS_Dis(self, pred, target):
         num_p, num_point_mesh, _ = pred.size()
@@ -20,7 +24,8 @@ class Loss(_Loss):
         pred = pred.view(3, num_p, num_point_mesh).permute(1, 2, 0).contiguous()
         target = target.view(3, num_p, num_point_mesh).permute(1, 2, 0).contiguous()
         return torch.norm(pred - target, dim=2).mean(1)
-       
+
+
     def forward(self, out_rx, out_tx, out_mx, out_nx, out_ax, out_bx, cad, model_points, points, normal, target_r, target_t, cls, epoch):
         sym_flag = True if cls[0] in self.sym_list else False
         bs, num_p, _ = out_rx.size()
@@ -64,5 +69,5 @@ class Loss(_Loss):
             loss_aux3 = self.L2_Dis(out_ax, matching3_gt)
             loss_aux4 = self.L2_Dis(out_bx, matching4_gt)               
 
-        loss = loss_pose + loss_aux1 + 0.05*loss_aux2 + loss_aux3 + 0.05*loss_aux4
+        loss = loss_pose + loss_aux1 + 0.05 * loss_aux2 + loss_aux3 + 0.05 * loss_aux4
         return loss, loss_pose, loss_aux1, loss_aux2, loss_aux3, loss_aux4
